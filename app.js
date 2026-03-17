@@ -1019,6 +1019,12 @@
       return match ? match[1] : null;
     }
 
+    function tryLoadYoutubeFromUrl(url) {
+      if (!url) return;
+      const videoId = extractYoutubeVideoId(url);
+      if (videoId) initializePlayer(videoId);
+    }
+
     function formatTime(seconds) {
       const mins = Math.floor(seconds / 60);
       const secs = Math.floor(seconds % 60);
@@ -1277,14 +1283,13 @@
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       const now = new Date();
-      const titleRaw = songTitle;
-      const title = titleRaw.replace(/[\\/:*?"<>|]/g, "_") || "untitled";
+      const title = songTitle.replace(/[\\/:*?"<>|]/g, "_") || "untitled";
       const year = String(now.getFullYear());
       const month = String(now.getMonth() + 1).padStart(2, "0");
       const day = String(now.getDate()).padStart(2, "0");
       const hour = String(now.getHours()).padStart(2, "0");
       const minute = String(now.getMinutes()).padStart(2, "0");
-      link.download = `${title}-${year}-${month}-${day}-${hour}-${minute}.json`;
+      link.download = `${title}_${year}${month}${day}_${hour}${minute}.json`;
       link.click();
       URL.revokeObjectURL(link.href);
     }
@@ -1305,6 +1310,7 @@
           timeframes = Array.isArray(config.timeframes) ? config.timeframes.map((x) => ({ ...x })) : [];
           currentSong = config.songName || "";
           youtubeUrl.value = config.youtubeUrl || "";
+          tryLoadYoutubeFromUrl(config.youtubeUrl);
           
           songNameInput.value = currentSong;
           updateSongSelect();
@@ -1332,6 +1338,7 @@
       timeframes = Array.isArray(payload.timeframes) ? payload.timeframes.map((x) => ({ ...x })) : [];
       currentSong = payload.songName || "";
       youtubeUrl.value = payload.youtubeUrl || "";
+      tryLoadYoutubeFromUrl(payload.youtubeUrl);
       songNameInput.value = currentSong;
       updateSongSelect();
       renderMembers();
@@ -1737,6 +1744,7 @@
       timeframes = Array.isArray(s.timeframes) ? s.timeframes.map((x) => ({ ...x })) : [];
       currentSong = song;
       youtubeUrl.value = s.youtubeUrl || "";
+      tryLoadYoutubeFromUrl(s.youtubeUrl);
       songNameInput.value = song;
       updateSongSelect();
       setShareHash(song);
