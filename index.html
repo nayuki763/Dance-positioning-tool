@@ -13,20 +13,14 @@
       <p>メンバーのカラーをドラッグ＆ドロップでステージ配置</p>
     </header>
 
-    <section class="panel">
-      <h2>メンバーを追加</h2>
-      <form id="memberForm" class="form-row">
-        <input id="memberName" type="text" placeholder="名前" required />
-        <input id="memberColor" type="color" value="#ff0000" />
-        <button type="submit">追加</button>
-      </form>
-    </section>
-
     <section class="grid">
       <div class="panel">
         <div class="panel-header">
-          <h2>メンバー一覧</h2>
-          <span class="hint">●をドラッグしてステージへ</span>
+          <h2>メンバー</h2>
+          <div class="panel-header-actions">
+            <span class="hint">●をドラッグしてステージへ</span>
+            <button id="openMemberManagerBtn" type="button" class="member-manage-btn">追加・編集</button>
+          </div>
         </div>
         <div id="memberList" class="member-list"></div>
       </div>
@@ -42,7 +36,7 @@
           <div class="stage-front-label">前</div>
         </div>
         <div class="form-row">
-          <button id="captureStageBtn" type="button">ステージ画像保存</button>
+          <button id="captureStageBtn" type="button">画像保存</button>
           <label class="switch">
             <input id="toggleNames" type="checkbox" checked />
             <span>アイコン下に名前を表示</span>
@@ -50,50 +44,52 @@
         </div>
       </div>
 
-      <div class="panel">
-        <div class="panel-header">
-          <h2>動画再生</h2>
-          <span class="hint">YouTubeから動画を読み込み</span>
-        </div>
-        <div class="form-row">
-          <input id="youtubeUrl" type="text" placeholder="YouTubeのURL（例：https://www.youtube.com/watch?v=...）" />
-          <button id="loadVideoBtn">読み込み</button>
-          <button id="toggleVideoDisplay">再生バーのみ表示</button>
-        </div>
-        <div id="videoContainer" class="video-container">
-          <div id="youtubePlayer" class="youtube-player"></div>
-          <div class="video-controls">
-            <div id="progressBar" class="progress-bar-wrapper">
-              <div id="progressFill" class="progress-fill"></div>
-            </div>
-            <div class="playback-controls">
-              <button id="playBtn" class="play-btn">▶</button>
-              <button id="pauseBtn" class="pause-btn">⏸</button>
-              <span id="currentTime" class="time-display">0:00</span>
-              <span class="time-separator">/</span>
-              <span id="duration" class="time-display">0:00</span>
+      <div class="panels-row">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>動画再生</h2>
+            <span class="hint">YouTubeから動画を読み込み</span>
+          </div>
+          <div class="form-row">
+            <input id="youtubeUrl" type="text" placeholder="YouTubeのURL（例：https://www.youtube.com/watch?v=...）" />
+            <button id="loadVideoBtn">読み込み</button>
+            <button id="toggleVideoDisplay">再生バーのみ表示</button>
+          </div>
+          <div id="videoContainer" class="video-container">
+            <div id="youtubePlayer" class="youtube-player"></div>
+            <div class="video-controls">
+              <div id="progressBar" class="progress-bar-wrapper">
+                <div id="progressFill" class="progress-fill"></div>
+              </div>
+              <div class="playback-controls">
+                <button id="playBtn" class="play-btn">▶</button>
+                <button id="pauseBtn" class="pause-btn">⏸</button>
+                <span id="currentTime" class="time-display">0:00</span>
+                <span class="time-separator">/</span>
+                <span id="duration" class="time-display">0:00</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="panel">
-        <div class="panel-header">
-          <h2>時間フレーム</h2>
-          <span class="hint">曲の秒数毎に立ち位置を保存</span>
+        <div class="panel">
+          <div class="panel-header">
+            <h2>時間フレーム</h2>
+            <span class="hint">曲の秒数毎に立ち位置を保存</span>
+          </div>
+          <div class="form-row">
+            <input id="frameStartMin" type="number" placeholder="開始分" min="0" />
+            <span>:</span>
+            <input id="frameStartSec" type="number" placeholder="秒" min="0" max="59" />
+            <span>～</span>
+            <input id="frameEndMin" type="number" placeholder="終了分" min="0" />
+            <span>:</span>
+            <input id="frameEndSec" type="number" placeholder="秒" min="0" max="59" />
+            <button id="addFrameBtn">フレーム追加</button>
+            <input id="frameLyrics" type="text" placeholder="メモ(歌詞など)" />
+          </div>
+          <div id="timeframesList" class="timeframes-list"></div>
         </div>
-        <div class="form-row">
-          <input id="frameStartMin" type="number" placeholder="開始分" min="0" />
-          <span>:</span>
-          <input id="frameStartSec" type="number" placeholder="秒" min="0" max="59" />
-          <span>～</span>
-          <input id="frameEndMin" type="number" placeholder="終了分" min="0" />
-          <span>:</span>
-          <input id="frameEndSec" type="number" placeholder="秒" min="0" max="59" />
-          <input id="frameLyrics" type="text" placeholder="メモ(歌詞など)" />
-          <button id="addFrameBtn">フレーム追加</button>
-        </div>
-        <div id="timeframesList" class="timeframes-list"></div>
       </div>
 
       <div class="panel">
@@ -116,6 +112,23 @@
         </div>
       </div>
     </section>
+
+    <div id="memberManagerModal" class="modal-backdrop hidden" aria-hidden="true">
+      <div class="modal-card member-manager-modal" role="dialog" aria-modal="true" aria-labelledby="memberManagerTitle">
+        <div class="panel-header modal-header">
+          <h2 id="memberManagerTitle">メンバー追加・編集</h2>
+          <button id="closeMemberManagerBtn" type="button" class="modal-close-btn">✕</button>
+        </div>
+        <div id="memberManagerList" class="member-manager-list"></div>
+        <div class="member-manager-footer">
+          <button id="addMemberRowBtn" type="button" class="member-manager-add-btn">メンバーを追加</button>
+          <div class="member-manager-actions">
+            <button id="saveMemberManagerBtn" type="button">保存</button>
+            <button id="cancelMemberManagerBtn" type="button" class="secondary-btn">キャンセル</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -128,10 +141,14 @@
     let timeframes = [];
 
     // ====== DOM ======
-    const memberForm = document.getElementById("memberForm");
-    const memberNameInput = document.getElementById("memberName");
-    const memberColorInput = document.getElementById("memberColor");
     const memberList = document.getElementById("memberList");
+    const openMemberManagerBtn = document.getElementById("openMemberManagerBtn");
+    const memberManagerModal = document.getElementById("memberManagerModal");
+    const memberManagerList = document.getElementById("memberManagerList");
+    const addMemberRowBtn = document.getElementById("addMemberRowBtn");
+    const saveMemberManagerBtn = document.getElementById("saveMemberManagerBtn");
+    const cancelMemberManagerBtn = document.getElementById("cancelMemberManagerBtn");
+    const closeMemberManagerBtn = document.getElementById("closeMemberManagerBtn");
     const stage = document.getElementById("stage");
     const toggleNames = document.getElementById("toggleNames");
     const songNameInput = document.getElementById("songName");
@@ -158,20 +175,174 @@
     const pauseBtn = document.getElementById("pauseBtn");
     const currentTimeDisplay = document.getElementById("currentTime");
     const durationDisplay = document.getElementById("duration");
-    const progressFill = document.getElementById("progressFill");
     const progressBar = document.getElementById("progressBar");
     const captureStageBtn = document.getElementById("captureStageBtn");
 
     let player = null;
     let isPlayerReady = false;
-    let videoDisplayMode = true; // true: 動画表示, false: 再生バーのみ
+    let progressInterval = null;
+    let videoDisplayMode = true; // true = video shown, false = controls only
     let isPlaying = false;
     let lastAppliedFrameIndex = -1;
     let activeMemberEditor = null;
+    let activeTimeframeEditor = null;
+    let memberManagerDraft = [];
 
     // ====== ヘルパー ======
     function generateId() {
       return "id-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
+    }
+
+    function closeTimeframeEditor() {
+      if (!activeTimeframeEditor) return;
+      activeTimeframeEditor.remove();
+      activeTimeframeEditor = null;
+    }
+
+    function formatFrameRange(frame) {
+      return `${String(Math.floor(frame.startTime / 60)).padStart(2, "0")}:${String(frame.startTime % 60).padStart(2, "0")} ～ ${String(Math.floor(frame.endTime / 60)).padStart(2, "0")}:${String(frame.endTime % 60).padStart(2, "0")}`;
+    }
+
+    function openTimeframeEditor(frame, anchorEl) {
+      closeTimeframeEditor();
+
+      const pop = document.createElement("div");
+      pop.className = "timeframe-edit-popover";
+
+      const timeRow = document.createElement("div");
+      timeRow.className = "timeframe-edit-time-row";
+
+      const startMinInput = document.createElement("input");
+      startMinInput.type = "number";
+      startMinInput.min = "0";
+      startMinInput.className = "timeframe-edit-number";
+      startMinInput.value = String(Math.floor(frame.startTime / 60));
+
+      const startSecInput = document.createElement("input");
+      startSecInput.type = "number";
+      startSecInput.min = "0";
+      startSecInput.max = "59";
+      startSecInput.className = "timeframe-edit-number";
+      startSecInput.value = String(frame.startTime % 60);
+
+      const endMinInput = document.createElement("input");
+      endMinInput.type = "number";
+      endMinInput.min = "0";
+      endMinInput.className = "timeframe-edit-number";
+      endMinInput.value = String(Math.floor(frame.endTime / 60));
+
+      const endSecInput = document.createElement("input");
+      endSecInput.type = "number";
+      endSecInput.min = "0";
+      endSecInput.max = "59";
+      endSecInput.className = "timeframe-edit-number";
+      endSecInput.value = String(frame.endTime % 60);
+
+      const separator1 = document.createElement("span");
+      separator1.textContent = ":";
+      const wave = document.createElement("span");
+      wave.textContent = "～";
+      const separator2 = document.createElement("span");
+      separator2.textContent = ":";
+
+      timeRow.appendChild(startMinInput);
+      timeRow.appendChild(separator1);
+      timeRow.appendChild(startSecInput);
+      timeRow.appendChild(wave);
+      timeRow.appendChild(endMinInput);
+      timeRow.appendChild(separator2);
+      timeRow.appendChild(endSecInput);
+
+      const lyricsInput = document.createElement("input");
+      lyricsInput.type = "text";
+      lyricsInput.className = "timeframe-edit-lyrics";
+      lyricsInput.placeholder = "メモ(歌詞など)";
+      lyricsInput.value = frame.lyrics || "";
+
+      const actions = document.createElement("div");
+      actions.className = "timeframe-edit-actions";
+
+      const updateLayoutBtn = document.createElement("button");
+      updateLayoutBtn.type = "button";
+      updateLayoutBtn.className = "timeframe-edit-secondary";
+      updateLayoutBtn.textContent = "現在の配置を保存";
+
+      const saveBtn = document.createElement("button");
+      saveBtn.type = "button";
+      saveBtn.className = "timeframe-edit-save";
+      saveBtn.textContent = "保存";
+
+      const cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.className = "timeframe-edit-cancel";
+      cancelBtn.textContent = "閉じる";
+
+      actions.appendChild(updateLayoutBtn);
+      actions.appendChild(saveBtn);
+      actions.appendChild(cancelBtn);
+
+      pop.appendChild(timeRow);
+      pop.appendChild(lyricsInput);
+      pop.appendChild(actions);
+
+      document.body.appendChild(pop);
+      activeTimeframeEditor = pop;
+
+      const rect = anchorEl.getBoundingClientRect();
+      const popRect = pop.getBoundingClientRect();
+      let left = rect.left + rect.width / 2 - popRect.width / 2;
+      left = Math.max(8, Math.min(left, window.innerWidth - popRect.width - 8));
+      let top = rect.top - popRect.height - 8;
+      if (top < 8) top = rect.bottom + 8;
+      pop.style.left = `${left}px`;
+      pop.style.top = `${top}px`;
+
+      const saveEdit = () => {
+        const startTime = (parseInt(startMinInput.value, 10) || 0) * 60 + (parseInt(startSecInput.value, 10) || 0);
+        const endTime = (parseInt(endMinInput.value, 10) || 0) * 60 + (parseInt(endSecInput.value, 10) || 0);
+
+        if (startTime >= endTime) {
+          alert("開始時刻は終了時刻より前にしてください。");
+          return;
+        }
+
+        frame.startTime = startTime;
+        frame.endTime = endTime;
+        frame.lyrics = lyricsInput.value.trim();
+        timeframes.sort((a, b) => a.startTime - b.startTime);
+        renderTimeframes();
+        saveStorage();
+        closeTimeframeEditor();
+      };
+
+      updateLayoutBtn.addEventListener("click", () => {
+        frame.stageItems = stageItems.map((item) => ({ ...item }));
+        saveStorage();
+      });
+      saveBtn.addEventListener("click", saveEdit);
+      cancelBtn.addEventListener("click", closeTimeframeEditor);
+
+      [startMinInput, startSecInput, endMinInput, endSecInput, lyricsInput].forEach((input) => {
+        input.addEventListener("keydown", (ev) => {
+          if (ev.key === "Enter") saveEdit();
+          if (ev.key === "Escape") closeTimeframeEditor();
+        });
+      });
+
+      pop.addEventListener("click", (ev) => ev.stopPropagation());
+
+      setTimeout(() => {
+        const onDocClick = (ev) => {
+          if (activeTimeframeEditor && !activeTimeframeEditor.contains(ev.target)) {
+            closeTimeframeEditor();
+            document.removeEventListener("click", onDocClick);
+          }
+        };
+        document.addEventListener("click", onDocClick);
+      }, 0);
+
+      startMinInput.focus();
+      startMinInput.select();
     }
 
     function saveStorage() {
@@ -184,6 +355,7 @@
     function loadStorage() {
       const txt = localStorage.getItem(STORAGE_KEY);
       if (!txt) return;
+      timeframes.sort((a, b) => a.startTime - b.startTime);
       try {
         const data = JSON.parse(txt);
         members = Array.isArray(data.members) ? data.members : [];
@@ -216,6 +388,97 @@
       if (!activeMemberEditor) return;
       activeMemberEditor.remove();
       activeMemberEditor = null;
+    }
+
+    function syncItemsWithMembers(items, membersById) {
+      return items.reduce((result, item) => {
+        const member = membersById.get(item.memberId);
+        if (!member) return result;
+        result.push({
+          ...item,
+          name: member.name,
+          color: member.color,
+        });
+        return result;
+      }, []);
+    }
+
+    function applyMembersState(nextMembers) {
+      members = nextMembers.map((member) => ({ ...member }));
+      const membersById = new Map(members.map((member) => [member.id, member]));
+      stageItems = syncItemsWithMembers(stageItems, membersById);
+      timeframes = timeframes.map((frame) => ({
+        ...frame,
+        stageItems: syncItemsWithMembers(frame.stageItems || [], membersById),
+      }));
+    }
+
+    function closeMemberManager() {
+      memberManagerModal.classList.add("hidden");
+      memberManagerModal.setAttribute("aria-hidden", "true");
+      memberManagerDraft = [];
+    }
+
+    function renderMemberManagerRows() {
+      memberManagerList.innerHTML = "";
+
+      if (memberManagerDraft.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty-msg";
+        empty.textContent = "メンバーがいません。追加してください。";
+        memberManagerList.appendChild(empty);
+        return;
+      }
+
+      memberManagerDraft.forEach((member, index) => {
+        const row = document.createElement("div");
+        row.className = "member-manager-row";
+
+        const colorInput = document.createElement("input");
+        colorInput.type = "color";
+        colorInput.className = "member-manager-color";
+        colorInput.value = member.color || "#ff0000";
+        colorInput.addEventListener("input", () => {
+          memberManagerDraft[index].color = colorInput.value;
+        });
+
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.className = "member-manager-name";
+        nameInput.placeholder = "名前";
+        nameInput.value = member.name || "";
+        nameInput.addEventListener("input", () => {
+          memberManagerDraft[index].name = nameInput.value;
+        });
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "member-manager-delete-btn";
+        deleteBtn.textContent = "削除";
+        deleteBtn.addEventListener("click", () => {
+          memberManagerDraft = memberManagerDraft.filter((_, draftIndex) => draftIndex !== index);
+          renderMemberManagerRows();
+        });
+
+        row.appendChild(colorInput);
+        row.appendChild(nameInput);
+        row.appendChild(deleteBtn);
+        memberManagerList.appendChild(row);
+      });
+    }
+
+    function openMemberManager() {
+      closeMemberEditor();
+      memberManagerDraft = members.map((member) => ({ ...member }));
+      renderMemberManagerRows();
+      memberManagerModal.classList.remove("hidden");
+      memberManagerModal.setAttribute("aria-hidden", "false");
+
+      const firstInput = memberManagerList.querySelector(".member-manager-name");
+      if (firstInput) {
+        firstInput.focus();
+        firstInput.select();
+      }
     }
 
     function openMemberEditor(member, anchorEl) {
@@ -315,36 +578,71 @@
 
     function renderMembers() {
       memberList.innerHTML = "";
+      if (members.length === 0) {
+        memberList.innerHTML = '<div class="empty-msg">メンバーがいません。追加・編集から登録してください。</div>';
+        return;
+      }
+
       members.forEach((m) => {
         const row = document.createElement("div");
         row.className = "member-row";
-        const dot = document.createElement("div");
-        dot.className = "member-dot";
-        dot.style.backgroundColor = m.color;
-        dot.draggable = true;
-        dot.dataset.memberId = m.id;
-        dot.title = `${m.name} (${m.color})`;
+        row.draggable = true;
+        row.title = `${m.name} (${m.color})`;
 
-        dot.addEventListener("dragstart", (ev) => {
+        const startMemberDrag = (ev) => {
           ev.dataTransfer.setData(
             "application/json",
             JSON.stringify({ type: "member", memberId: m.id })
           );
-        });
+
+          const dragPreview = document.createElement("div");
+          dragPreview.style.position = "fixed";
+          dragPreview.style.left = "-9999px";
+          dragPreview.style.top = "-9999px";
+          dragPreview.style.display = "flex";
+          dragPreview.style.flexDirection = "column";
+          dragPreview.style.alignItems = "center";
+          dragPreview.style.gap = "4px";
+          dragPreview.style.padding = "4px";
+          
+          const dragDot = document.createElement("div");
+          dragDot.className = "member-dot";
+          dragDot.style.backgroundColor = m.color;
+          dragDot.style.margin = "0";
+          dragPreview.appendChild(dragDot);
+          
+          const dragLabel = document.createElement("div");
+          dragLabel.textContent = m.name;
+          dragLabel.style.fontSize = "12px";
+          dragLabel.style.color = "#333";
+          dragLabel.style.fontWeight = "bold";
+          dragLabel.style.whiteSpace = "nowrap";
+          dragPreview.appendChild(dragLabel);
+          
+          document.body.appendChild(dragPreview);
+          ev.dataTransfer.setDragImage(dragPreview, 16, 16);
+
+          setTimeout(() => {
+            dragPreview.remove();
+          }, 0);
+        };
+        row.addEventListener("dragstart", startMemberDrag);
+
+        const dot = document.createElement("div");
+        dot.className = "member-dot";
+        dot.style.backgroundColor = m.color;
+        dot.dataset.memberId = m.id;
 
         const label = document.createElement("span");
         label.className = "member-name-label";
         label.textContent = m.name;
-        label.title = "クリックで名前と色を編集";
-        label.addEventListener("click", (ev) => {
-          ev.stopPropagation();
-          openMemberEditor(m, label);
-        });
+        label.title = "追加・編集ボタンから一括編集できます";
         
         const deleteBtn = document.createElement("button");
         deleteBtn.className = "member-delete-btn";
         deleteBtn.textContent = "✕";
         deleteBtn.type = "button";
+        deleteBtn.draggable = false;
         deleteBtn.title = "メンバーを削除";
         deleteBtn.addEventListener("click", () => {
           members = members.filter((x) => x.id !== m.id);
@@ -461,10 +759,19 @@
         const frameBtn = document.createElement("button");
         frameBtn.type = "button";
         frameBtn.className = "timeframe-btn";
-        frameBtn.textContent = `${String(Math.floor(frame.startTime / 60)).padStart(2, "0")}:${String(frame.startTime % 60).padStart(2, "0")} ～ ${String(Math.floor(frame.endTime / 60)).padStart(2, "0")}:${String(frame.endTime % 60).padStart(2, "0")}  ${frame.lyrics}`;
+        frameBtn.textContent = `${formatFrameRange(frame)}  ${frame.lyrics}`;
         frameBtn.addEventListener("click", () => {
           stageItems = frame.stageItems.map((x) => ({ ...x }));
           renderStage(true);
+        });
+
+        const editFrameBtn = document.createElement("button");
+        editFrameBtn.type = "button";
+        editFrameBtn.className = "timeframe-edit-btn";
+        editFrameBtn.textContent = "編集";
+        editFrameBtn.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          openTimeframeEditor(frame, editFrameBtn);
         });
 
         const deleteFrameBtn = document.createElement("button");
@@ -480,6 +787,7 @@
         const frameRow = document.createElement("div");
         frameRow.className = "timeframe-row";
         frameRow.appendChild(frameBtn);
+        frameRow.appendChild(editFrameBtn);
         frameRow.appendChild(deleteFrameBtn);
         timeframesList.appendChild(frameRow);
       });
@@ -750,15 +1058,55 @@
     }
 
     // ====== イベント ======
-    memberForm.addEventListener("submit", (ev) => {
-      ev.preventDefault();
-      const name = memberNameInput.value.trim();
-      const color = memberColorInput.value;
-      if (!name) return;
-      members.push({ id: generateId(), name, color });
-      memberNameInput.value = "";
+    openMemberManagerBtn.addEventListener("click", () => {
+      openMemberManager();
+    });
+
+    addMemberRowBtn.addEventListener("click", () => {
+      memberManagerDraft.push({ id: generateId(), name: "", color: "#ff0000" });
+      renderMemberManagerRows();
+      const inputs = memberManagerList.querySelectorAll(".member-manager-name");
+      const lastInput = inputs[inputs.length - 1];
+      if (lastInput) lastInput.focus();
+    });
+
+    saveMemberManagerBtn.addEventListener("click", () => {
+      const nextMembers = memberManagerDraft.map((member) => ({
+        ...member,
+        name: (member.name || "").trim(),
+        color: member.color || "#ff0000",
+      }));
+
+      if (nextMembers.some((member) => !member.name)) {
+        alert("メンバー名は空にできません。");
+        return;
+      }
+
+      applyMembersState(nextMembers);
       renderMembers();
+      renderStage();
       saveStorage();
+      closeMemberManager();
+    });
+
+    cancelMemberManagerBtn.addEventListener("click", () => {
+      closeMemberManager();
+    });
+
+    closeMemberManagerBtn.addEventListener("click", () => {
+      closeMemberManager();
+    });
+
+    memberManagerModal.addEventListener("click", (ev) => {
+      if (ev.target === memberManagerModal) {
+        closeMemberManager();
+      }
+    });
+
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape" && !memberManagerModal.classList.contains("hidden")) {
+        closeMemberManager();
+      }
     });
 
     toggleNames.addEventListener("change", () => {
@@ -809,7 +1157,6 @@
         alert("有効なYouTubeのURLではありません。");
         return;
       }
-      youtubeUrl.value = "";
       initializePlayer(videoId);
     });
 
