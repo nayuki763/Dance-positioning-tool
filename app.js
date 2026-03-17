@@ -846,7 +846,7 @@
 
           const cone = document.createElement("div");
           cone.className = "stage-cone";
-          cone.title = "左ドラッグ: 幅調整 / ホイールドラッグ: 向き・長さ調整";
+          cone.title = "左ドラッグ: 幅調整 / Ctrl+左クリック長押し: 向き・長さ調整";
 
           const leftLine = document.createElement("div");
           leftLine.className = "stage-cone-line stage-cone-line-left";
@@ -862,11 +862,11 @@
           }
 
           const startConeAdjust = (ev) => {
-            if (ev.button !== 0 && ev.button !== 1) return;
+            if (ev.button !== 0) return;
             ev.preventDefault();
             ev.stopPropagation();
 
-            const mode = ev.button === 0 ? "spread" : "angle-length";
+            const mode = ev.ctrlKey ? "angle-length" : "spread";
             const startX = ev.clientX;
             const startSpread = item.coneSpread;
 
@@ -905,12 +905,6 @@
           };
 
           cone.addEventListener("mousedown", startConeAdjust);
-          cone.addEventListener("auxclick", (ev) => {
-            if (ev.button === 1) {
-              ev.preventDefault();
-              ev.stopPropagation();
-            }
-          });
           el.appendChild(cone);
         }
 
