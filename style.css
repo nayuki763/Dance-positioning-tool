@@ -167,6 +167,12 @@ button.danger:hover {
   justify-content: flex-end;
 }
 
+.stage-hints {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
 .hint {
   font-size: 12px;
   color: #999;
@@ -234,6 +240,25 @@ button.danger:hover {
 
 .member-name-label {
   cursor: inherit;
+}
+
+.equipment-row-camera {
+  background: #f3f4f6;
+}
+
+.equipment-row-lighting {
+  background: #fffdf3;
+}
+
+.equipment-line-toggle-btn {
+  padding: 4px 8px;
+  font-size: 11px;
+  background: #6f7a86;
+  border-radius: 999px;
+}
+
+.equipment-line-toggle-btn:hover {
+  background: #57616d;
 }
 
 .member-name-label:hover {
@@ -373,6 +398,10 @@ button.danger:hover {
   padding: 8px;
 }
 
+.equipment-manager-row {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+}
+
 @media (max-width: 640px) {
   .member-manager-list {
     grid-template-columns: 1fr;
@@ -418,6 +447,24 @@ button.danger:hover {
 
 .member-manager-add-btn:hover {
   background: #2f84cb;
+}
+
+#addCameraRowBtn {
+  background: #111111;
+}
+
+#addCameraRowBtn:hover {
+  background: #2f2f2f;
+}
+
+#addLightingRowBtn {
+  background: #f7f4e8;
+  color: #3f434a;
+  border: 1px solid #dbd4bc;
+}
+
+#addLightingRowBtn:hover {
+  background: #ece6d4;
 }
 
 /* ステージ */
@@ -475,6 +522,34 @@ button.danger:hover {
   align-items: center;
   justify-content: center;
   transition: box-shadow 0.2s ease, transform 0.6s ease, z-index 0.6s ease;
+}
+
+.stage-cone {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  width: 0;
+  height: 0;
+  pointer-events: auto;
+  z-index: 0;
+}
+
+.stage-cone-line {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 64px;
+  border-top: 2px solid rgba(17, 17, 17, 0.2);
+  transform-origin: 0 0;
+  cursor: grab;
+}
+
+.stage-cone-line-left {
+  transform: rotate(-115deg);
+}
+
+.stage-cone-line-right {
+  transform: rotate(-65deg);
 }
 
 .stage-item.no-transition {
