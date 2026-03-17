@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
@@ -20,10 +20,6 @@
         <input id="memberColor" type="color" value="#ff0000" />
         <button type="submit">追加</button>
       </form>
-      <label class="switch">
-        <input id="toggleNames" type="checkbox" checked />
-        <span>アイコン下に名前を表示</span>
-      </label>
     </section>
 
     <section class="grid">
@@ -44,6 +40,13 @@
           <div class="stage-back-label">後ろ</div>
           <div id="stage" class="stage" droppable="true"></div>
           <div class="stage-front-label">前</div>
+        </div>
+        <div class="form-row">
+          <button id="captureStageBtn" type="button">ステージ画像保存</button>
+          <label class="switch">
+            <input id="toggleNames" type="checkbox" checked />
+            <span>アイコン下に名前を表示</span>
+          </label>
         </div>
       </div>
 
@@ -92,20 +95,26 @@
         </div>
         <div id="timeframesList" class="timeframes-list"></div>
       </div>
-    </section>
 
-    <section class="panel">
-      <div class="form-row">
-        <input id="songName" type="text" placeholder="曲名を入力" />
-        <button id="saveSong">この曲で保存</button>
-        <button id="shareSong">共有リンク作成</button>
+      <div class="panel">
+        <div class="panel-header">
+          <h2>保存・読込</h2>
+        </div>
+        <div class="form-row">
+          <input id="songName" type="text" placeholder="曲名を入力" />
+          <button id="saveSong">この曲で保存</button>
+          <button id="downloadBtn">ファイルダウンロード</button>
+        </div>
+        <div class="form-row">
+          <select id="songSelect"></select>
+          <button id="loadSong">読み込み</button>
+          <button id="deleteSong" class="danger">削除</button>
+        </div>
+        <div class="form-row">
+          <input id="uploadFile" type="file" accept=".json" />
+          <button id="uploadBtn">ファイル読込</button>
+        </div>
       </div>
-      <div class="form-row">
-        <select id="songSelect"></select>
-        <button id="loadSong">読み込み</button>
-        <button id="deleteSong" class="danger">削除</button>
-      </div>
-      <div id="shareLink" class="share-link"></div>
     </section>
   </div>
 
@@ -127,11 +136,12 @@
     const toggleNames = document.getElementById("toggleNames");
     const songNameInput = document.getElementById("songName");
     const saveSongBtn = document.getElementById("saveSong");
-    const shareSongBtn = document.getElementById("shareSong");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const uploadFile = document.getElementById("uploadFile");
+    const uploadBtn = document.getElementById("uploadBtn");
     const songSelect = document.getElementById("songSelect");
     const loadSongBtn = document.getElementById("loadSong");
     const deleteSongBtn = document.getElementById("deleteSong");
-    const shareLinkDiv = document.getElementById("shareLink");
     const timeframesList = document.getElementById("timeframesList");
     const frameStartMin = document.getElementById("frameStartMin");
     const frameStartSec = document.getElementById("frameStartSec");
@@ -150,12 +160,14 @@
     const durationDisplay = document.getElementById("duration");
     const progressFill = document.getElementById("progressFill");
     const progressBar = document.getElementById("progressBar");
+    const captureStageBtn = document.getElementById("captureStageBtn");
 
     let player = null;
     let isPlayerReady = false;
     let videoDisplayMode = true; // true: 動画表示, false: 再生バーのみ
     let isPlaying = false;
     let lastAppliedFrameIndex = -1;
+    let activeMemberEditor = null;
 
     // ====== ヘルパー ======
     function generateId() {
@@ -200,6 +212,107 @@
       });
     }
 
+    function closeMemberEditor() {
+      if (!activeMemberEditor) return;
+      activeMemberEditor.remove();
+      activeMemberEditor = null;
+    }
+
+    function openMemberEditor(member, anchorEl) {
+      closeMemberEditor();
+
+      const pop = document.createElement("div");
+      pop.className = "member-edit-popover";
+
+      const nameInput = document.createElement("input");
+      nameInput.type = "text";
+      nameInput.className = "member-edit-name";
+      nameInput.value = member.name;
+
+      const colorInput = document.createElement("input");
+      colorInput.type = "color";
+      colorInput.className = "member-edit-color";
+      colorInput.value = member.color || "#ff0000";
+
+      const saveBtn = document.createElement("button");
+      saveBtn.type = "button";
+      saveBtn.className = "member-edit-save";
+      saveBtn.textContent = "保存";
+
+      const cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.className = "member-edit-cancel";
+      cancelBtn.textContent = "閉じる";
+
+      const actions = document.createElement("div");
+      actions.className = "member-edit-actions";
+      actions.appendChild(saveBtn);
+      actions.appendChild(cancelBtn);
+
+      pop.appendChild(nameInput);
+      pop.appendChild(colorInput);
+      pop.appendChild(actions);
+
+      document.body.appendChild(pop);
+      activeMemberEditor = pop;
+
+      const rect = anchorEl.getBoundingClientRect();
+      const popRect = pop.getBoundingClientRect();
+      let left = rect.left + rect.width / 2 - popRect.width / 2;
+      left = Math.max(8, Math.min(left, window.innerWidth - popRect.width - 8));
+      let top = rect.top - popRect.height - 8;
+      if (top < 8) top = rect.bottom + 8;
+
+      pop.style.left = `${left}px`;
+      pop.style.top = `${top}px`;
+
+      const saveEdit = () => {
+        const newName = nameInput.value.trim();
+        if (!newName) {
+          alert("名前は空にできません。");
+          return;
+        }
+
+        member.name = newName;
+        member.color = colorInput.value;
+
+        stageItems.forEach((item) => {
+          if (item.memberId === member.id) {
+            item.name = newName;
+            item.color = member.color;
+          }
+        });
+
+        renderMembers();
+        renderStage();
+        saveStorage();
+        closeMemberEditor();
+      };
+
+      saveBtn.addEventListener("click", saveEdit);
+      cancelBtn.addEventListener("click", closeMemberEditor);
+
+      nameInput.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") saveEdit();
+        if (ev.key === "Escape") closeMemberEditor();
+      });
+
+      pop.addEventListener("click", (ev) => ev.stopPropagation());
+
+      setTimeout(() => {
+        const onDocClick = (ev) => {
+          if (activeMemberEditor && !activeMemberEditor.contains(ev.target)) {
+            closeMemberEditor();
+            document.removeEventListener("click", onDocClick);
+          }
+        };
+        document.addEventListener("click", onDocClick);
+      }, 0);
+
+      nameInput.focus();
+      nameInput.select();
+    }
+
     function renderMembers() {
       memberList.innerHTML = "";
       members.forEach((m) => {
@@ -220,7 +333,13 @@
         });
 
         const label = document.createElement("span");
+        label.className = "member-name-label";
         label.textContent = m.name;
+        label.title = "クリックで名前と色を編集";
+        label.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          openMemberEditor(m, label);
+        });
         
         const deleteBtn = document.createElement("button");
         deleteBtn.className = "member-delete-btn";
@@ -378,6 +497,153 @@
       return `${mins}:${String(secs).padStart(2, "0")}`;
     }
 
+    function drawRoundedRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
+
+    function downloadStageScreenshot() {
+      const stageWidth = Math.max(1, Math.round(stage.clientWidth));
+      const stageHeight = Math.max(1, Math.round(stage.clientHeight));
+      const topLabelHeight = 24;
+      const bottomLabelHeight = 24;
+      const canvasWidth = stageWidth;
+      const canvasHeight = stageHeight + topLabelHeight + bottomLabelHeight;
+      const stageTop = topLabelHeight;
+
+      const canvas = document.createElement("canvas");
+      const scale = 2;
+      canvas.width = canvasWidth * scale;
+      canvas.height = canvasHeight * scale;
+
+      const ctx = canvas.getContext("2d");
+      ctx.scale(scale, scale);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+      const gradient = ctx.createLinearGradient(0, stageTop, 0, stageTop + stageHeight);
+      gradient.addColorStop(0, "#f5f7fa");
+      gradient.addColorStop(1, "#f5f7fa");
+      drawRoundedRect(ctx, 0, stageTop, stageWidth, stageHeight, 8);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      ctx.save();
+      ctx.setLineDash([7, 5]);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#d9e0ea";
+      drawRoundedRect(ctx, 1, stageTop + 1, stageWidth - 2, stageHeight - 2, 8);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = "#666";
+      ctx.font = "bold 15px 'Yu Gothic', Meiryo, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("後ろ", stageWidth / 2, topLabelHeight / 2);
+      ctx.fillText("前", stageWidth / 2, stageTop + stageHeight + bottomLabelHeight / 2);
+
+      const sorted = [...stageItems].sort((a, b) => a.y - b.y);
+      sorted.forEach((item) => {
+        const centerX = item.x + 16;
+        const centerY = stageTop + item.y + 16;
+
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 16, 0, Math.PI * 2);
+        ctx.fillStyle = item.color;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#ffffff";
+        ctx.stroke();
+
+        if (toggleNames.checked) {
+          ctx.fillStyle = "#333";
+          ctx.font = "600 10px 'Yu Gothic', Meiryo, sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+          ctx.fillText(item.name || "", centerX, centerY + 20);
+        }
+      });
+
+      const link = document.createElement("a");
+      link.href = canvas.toDataURL("image/png");
+      link.download = `stage-${new Date().toISOString().replace(/[:.]/g, "-")}.png`;
+      link.click();
+    }
+
+    function downloadConfigFile() {
+      const config = {
+        songName: currentSong || "",
+        members,
+        stageItems,
+        timeframes,
+      };
+      
+      const json = JSON.stringify(config, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `dance-config-${new Date().toISOString().split("T")[0]}.json`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    function uploadConfigFile(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const config = JSON.parse(e.target.result);
+          if (!config.members || !Array.isArray(config.members)) {
+            throw new Error("invalid-format");
+          }
+          
+          // データを復元
+          members = config.members.map((x) => ({ ...x }));
+          stageItems = Array.isArray(config.stageItems) ? config.stageItems.map((x) => ({ ...x })) : [];
+          timeframes = Array.isArray(config.timeframes) ? config.timeframes.map((x) => ({ ...x })) : [];
+          currentSong = config.songName || "";
+          
+          songNameInput.value = currentSong;
+          updateSongSelect();
+          renderMembers();
+          renderStage();
+          renderTimeframes();
+          saveStorage();
+          
+          alert("ファイルを読み込みました。");
+          uploadFile.value = "";
+        } catch (err) {
+          alert("ファイルの読み込みに失敗しました。正しいJSONファイルを選択してください。");
+          console.error(err);
+          uploadFile.value = "";
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function applySharedState(payload) {
+      members = Array.isArray(payload.members) ? payload.members.map((x) => ({ ...x })) : [];
+      stageItems = Array.isArray(payload.stageItems) ? payload.stageItems.map((x) => ({ ...x })) : [];
+      timeframes = Array.isArray(payload.timeframes) ? payload.timeframes.map((x) => ({ ...x })) : [];
+      currentSong = payload.songName || "";
+      songNameInput.value = currentSong;
+      updateSongSelect();
+      renderMembers();
+      renderStage();
+      renderTimeframes();
+      saveStorage();
+    }
+
     function applyFrameAtTime(currentTime) {
       const frameIndex = timeframes.findIndex(
         (f) => currentTime >= f.startTime && currentTime < f.endTime
@@ -474,10 +740,13 @@
 
     function parseHash() {
       const h = location.hash.replace(/^#/, "");
-      if (!h) return null;
-      const m = h.match(/song=([^&]+)/);
-      if (!m) return null;
-      return decodeURIComponent(m[1]);
+      if (!h) return { song: null, share: null };
+      const songMatch = h.match(/song=([^&]+)/);
+      const shareMatch = h.match(/share=([^&]+)/);
+      return {
+        song: songMatch ? decodeURIComponent(songMatch[1]) : null,
+        share: shareMatch ? decodeURIComponent(shareMatch[1]) : null,
+      };
     }
 
     // ====== イベント ======
@@ -554,6 +823,10 @@
       if (isPlayerReady && player) {
         player.pauseVideo();
       }
+    });
+
+    captureStageBtn.addEventListener("click", () => {
+      downloadStageScreenshot();
     });
 
     toggleVideoDisplay.addEventListener("click", () => {
@@ -658,34 +931,27 @@
       alert("削除しました。");
     });
 
-    shareSongBtn.addEventListener("click", () => {
-      const song = songNameInput.value.trim() || currentSong;
-      if (!song) {
-        alert("曲名をセットしてから共有してください。");
-        return;
-      }
-      setShareHash(song);
-      const url = `${location.origin}${location.pathname}#song=${encodeURIComponent(song)}`;
-      shareLinkDiv.textContent = "共有リンク: " + url;
-      shareLinkDiv.dataset.copy = url;
+    downloadBtn.addEventListener("click", () => {
+      downloadConfigFile();
     });
 
-    shareLinkDiv.addEventListener("click", () => {
-      const text = shareLinkDiv.dataset.copy;
-      if (!text) return;
-      navigator.clipboard.writeText(text).then(() => {
-        shareLinkDiv.textContent = "リンクをコピーしました。";
-      });
+    uploadBtn.addEventListener("click", () => {
+      const file = uploadFile.files[0];
+      if (!file) {
+        alert("ファイルを選択してください。");
+        return;
+      }
+      uploadConfigFile(file);
     });
 
     // ====== 初期化 ======
-    function init() {
+    async function init() {
       loadStorage();
-      const sharedSong = parseHash();
-      if (sharedSong && songs[sharedSong]) {
-        currentSong = sharedSong;
-        songNameInput.value = sharedSong;
-        const s = songs[sharedSong];
+      const hash = parseHash();
+      if (hash.song && songs[hash.song]) {
+        currentSong = hash.song;
+        songNameInput.value = hash.song;
+        const s = songs[hash.song];
         members = s.members.map((x) => ({ ...x }));
         stageItems = s.stageItems.map((x) => ({ ...x }));
         timeframes = Array.isArray(s.timeframes) ? s.timeframes.map((x) => ({ ...x })) : [];
