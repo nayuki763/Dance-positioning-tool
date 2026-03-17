@@ -1,4 +1,4 @@
-* {
+﻿* {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -626,6 +626,61 @@ textarea {
 }
 
 /* 時間フレーム */
+.timeframe-form-row {
+  align-items: flex-start;
+}
+
+.time-capture-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.time-capture-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.time-capture-btn {
+  padding: 6px 8px;
+  font-size: 12px;
+  background: #5f7fd8;
+}
+
+.time-capture-btn:hover {
+  background: #4a69c3;
+}
+
+.time-capture-separator {
+  align-self: center;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.time-end-group {
+  flex-direction: row !important;
+  align-items: flex-start;
+}
+
+.time-end-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.frame-note-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 280px;
+  min-width: 220px;
+}
+
+.frame-note-actions #frameLyrics {
+  flex: 1;
+}
+
 input[type="number"] {
   background: #f6f8fb;
   border: 1px solid #d0d7df;
