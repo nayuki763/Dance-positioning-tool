@@ -27,8 +27,22 @@
 
       <div class="panel">
         <div class="panel-header">
+          <h2>カメラ・照明</h2>
+          <div class="panel-header-actions">
+            <span class="hint">●をドラッグしてステージへ</span>
+            <button id="openEquipmentManagerBtn" type="button" class="member-manage-btn">追加・編集</button>
+          </div>
+        </div>
+        <div id="equipmentList" class="member-list"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
           <h2>ステージ</h2>
-          <span class="hint">ドラッグで移動（重ねて配置できます）</span>
+          <div class="panel-header-actions stage-hints">
+            <span class="hint">ドラッグで移動（重ねて配置できます）</span>
+            <span class="hint">線操作: 左ドラッグ=幅 / ホイールドラッグ=向き・長さ</span>
+          </div>
         </div>
         <div class="stage-wrap">
           <div class="stage-back-label">後ろ</div>
@@ -129,12 +143,33 @@
         </div>
       </div>
     </div>
+
+    <div id="equipmentManagerModal" class="modal-backdrop hidden" aria-hidden="true">
+      <div class="modal-card equipment-manager-modal" role="dialog" aria-modal="true" aria-labelledby="equipmentManagerTitle">
+        <div class="panel-header modal-header">
+          <h2 id="equipmentManagerTitle">カメラ・照明 追加・編集</h2>
+          <button id="closeEquipmentManagerBtn" type="button" class="modal-close-btn">✕</button>
+        </div>
+        <div id="equipmentManagerList" class="member-manager-list"></div>
+        <div class="member-manager-footer">
+          <div class="member-manager-actions">
+            <button id="addCameraRowBtn" type="button" class="member-manager-add-btn">カメラを追加</button>
+            <button id="addLightingRowBtn" type="button" class="member-manager-add-btn">照明を追加</button>
+          </div>
+          <div class="member-manager-actions">
+            <button id="saveEquipmentManagerBtn" type="button">保存</button>
+            <button id="cancelEquipmentManagerBtn" type="button" class="secondary-btn">キャンセル</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
     // ====== データ ======
     const STORAGE_KEY = "dance-layout-v2";
     let members = [];
+    let equipments = [];
     let stageItems = [];
     let songs = {};
     let currentSong = "";
@@ -143,12 +178,21 @@
     // ====== DOM ======
     const memberList = document.getElementById("memberList");
     const openMemberManagerBtn = document.getElementById("openMemberManagerBtn");
+    const equipmentList = document.getElementById("equipmentList");
+    const openEquipmentManagerBtn = document.getElementById("openEquipmentManagerBtn");
     const memberManagerModal = document.getElementById("memberManagerModal");
     const memberManagerList = document.getElementById("memberManagerList");
     const addMemberRowBtn = document.getElementById("addMemberRowBtn");
     const saveMemberManagerBtn = document.getElementById("saveMemberManagerBtn");
     const cancelMemberManagerBtn = document.getElementById("cancelMemberManagerBtn");
     const closeMemberManagerBtn = document.getElementById("closeMemberManagerBtn");
+    const equipmentManagerModal = document.getElementById("equipmentManagerModal");
+    const equipmentManagerList = document.getElementById("equipmentManagerList");
+    const addCameraRowBtn = document.getElementById("addCameraRowBtn");
+    const addLightingRowBtn = document.getElementById("addLightingRowBtn");
+    const saveEquipmentManagerBtn = document.getElementById("saveEquipmentManagerBtn");
+    const cancelEquipmentManagerBtn = document.getElementById("cancelEquipmentManagerBtn");
+    const closeEquipmentManagerBtn = document.getElementById("closeEquipmentManagerBtn");
     const stage = document.getElementById("stage");
     const toggleNames = document.getElementById("toggleNames");
     const songNameInput = document.getElementById("songName");
@@ -187,6 +231,12 @@
     let activeMemberEditor = null;
     let activeTimeframeEditor = null;
     let memberManagerDraft = [];
+    let equipmentManagerDraft = [];
+
+    const EQUIPMENT_TYPE_META = {
+      camera: { label: "カメラ", color: "#111111" },
+      lighting: { label: "照明", color: "#f7f4e8" },
+    };
 
     // ====== ヘルパー ======
     function generateId() {
@@ -345,10 +395,30 @@
       startMinInput.select();
     }
 
-    function saveStorage() {
+    function saveStorage(options = {}) {
+      const { mergeExistingSongs = true } = options;
+
+      let songsToSave = songs;
+      if (mergeExistingSongs) {
+        try {
+          const existingTxt = localStorage.getItem(STORAGE_KEY);
+          if (existingTxt) {
+            const existingData = JSON.parse(existingTxt);
+            const existingSongs =
+              existingData && typeof existingData.songs === "object" && !Array.isArray(existingData.songs)
+                ? existingData.songs
+                : {};
+            songsToSave = { ...existingSongs, ...songs };
+          }
+        } catch (e) {
+          console.warn("既存保存データのマージに失敗", e);
+        }
+      }
+
+      songs = songsToSave;
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ members, stageItems, songs, currentSong, timeframes })
+        JSON.stringify({ members, equipments, stageItems, songs: songsToSave, currentSong, timeframes })
       );
     }
 
@@ -359,6 +429,7 @@
       try {
         const data = JSON.parse(txt);
         members = Array.isArray(data.members) ? data.members : [];
+        equipments = Array.isArray(data.equipments) ? data.equipments : [];
         stageItems = Array.isArray(data.stageItems) ? data.stageItems : [];
         songs = data.songs || {};
         currentSong = data.currentSong || "";
@@ -392,6 +463,10 @@
 
     function syncItemsWithMembers(items, membersById) {
       return items.reduce((result, item) => {
+        if (item.itemType === "equipment") {
+          result.push({ ...item });
+          return result;
+        }
         const member = membersById.get(item.memberId);
         if (!member) return result;
         result.push({
@@ -413,10 +488,50 @@
       }));
     }
 
+    function syncItemsWithEquipments(items, equipmentsById) {
+      return items.reduce((result, item) => {
+        if (item.itemType === "equipment") {
+          const equipment = equipmentsById.get(item.equipmentId);
+          if (!equipment) return result;
+          result.push({
+            ...item,
+            itemType: "equipment",
+            equipmentId: equipment.id,
+            equipmentType: equipment.type,
+            name: equipment.name,
+            color: equipment.color || (equipment.type === "lighting" ? "#f7f4e8" : "#111111"),
+            coneVisible: equipment.coneVisible !== false,
+            coneAngle: typeof item.coneAngle === "number" ? item.coneAngle : -90,
+            coneSpread: typeof item.coneSpread === "number" ? item.coneSpread : 120,
+            coneLength: typeof item.coneLength === "number" ? item.coneLength : 96,
+          });
+          return result;
+        }
+        result.push({ ...item });
+        return result;
+      }, []);
+    }
+
+    function applyEquipmentsState(nextEquipments) {
+      equipments = nextEquipments.map((equipment) => ({ ...equipment }));
+      const equipmentsById = new Map(equipments.map((equipment) => [equipment.id, equipment]));
+      stageItems = syncItemsWithEquipments(stageItems, equipmentsById);
+      timeframes = timeframes.map((frame) => ({
+        ...frame,
+        stageItems: syncItemsWithEquipments(frame.stageItems || [], equipmentsById),
+      }));
+    }
+
     function closeMemberManager() {
       memberManagerModal.classList.add("hidden");
       memberManagerModal.setAttribute("aria-hidden", "true");
       memberManagerDraft = [];
+    }
+
+    function closeEquipmentManager() {
+      equipmentManagerModal.classList.add("hidden");
+      equipmentManagerModal.setAttribute("aria-hidden", "true");
+      equipmentManagerDraft = [];
     }
 
     function renderMemberManagerRows() {
@@ -475,6 +590,70 @@
       memberManagerModal.setAttribute("aria-hidden", "false");
 
       const firstInput = memberManagerList.querySelector(".member-manager-name");
+      if (firstInput) {
+        firstInput.focus();
+        firstInput.select();
+      }
+    }
+
+    function renderEquipmentManagerRows() {
+      equipmentManagerList.innerHTML = "";
+
+      if (equipmentManagerDraft.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty-msg";
+        empty.textContent = "カメラ・照明がありません。追加してください。";
+        equipmentManagerList.appendChild(empty);
+        return;
+      }
+
+      equipmentManagerDraft.forEach((equipment, index) => {
+        const row = document.createElement("div");
+        row.className = "member-manager-row equipment-manager-row";
+
+        const meta = EQUIPMENT_TYPE_META[equipment.type] || EQUIPMENT_TYPE_META.camera;
+
+        const colorInput = document.createElement("input");
+        colorInput.type = "color";
+        colorInput.className = "member-manager-color";
+        colorInput.value = equipment.color || meta.color;
+        colorInput.addEventListener("input", () => {
+          equipmentManagerDraft[index].color = colorInput.value;
+        });
+
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.className = "member-manager-name";
+        nameInput.placeholder = "名前";
+        nameInput.value = equipment.name || "";
+        nameInput.addEventListener("input", () => {
+          equipmentManagerDraft[index].name = nameInput.value;
+        });
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "member-manager-delete-btn";
+        deleteBtn.textContent = "削除";
+        deleteBtn.addEventListener("click", () => {
+          equipmentManagerDraft = equipmentManagerDraft.filter((_, draftIndex) => draftIndex !== index);
+          renderEquipmentManagerRows();
+        });
+
+        row.appendChild(colorInput);
+        row.appendChild(nameInput);
+        row.appendChild(deleteBtn);
+        equipmentManagerList.appendChild(row);
+      });
+    }
+
+    function openEquipmentManager() {
+      closeMemberEditor();
+      equipmentManagerDraft = equipments.map((equipment) => ({ ...equipment }));
+      renderEquipmentManagerRows();
+      equipmentManagerModal.classList.remove("hidden");
+      equipmentManagerModal.setAttribute("aria-hidden", "false");
+
+      const firstInput = equipmentManagerList.querySelector(".member-manager-name");
       if (firstInput) {
         firstInput.focus();
         firstInput.select();
@@ -659,6 +838,113 @@
       });
     }
 
+    function renderEquipments() {
+      equipmentList.innerHTML = "";
+      if (equipments.length === 0) {
+        equipmentList.innerHTML = '<div class="empty-msg">カメラ・照明がありません。追加・編集から登録してください。</div>';
+        return;
+      }
+
+      equipments.forEach((equipment) => {
+        const meta = EQUIPMENT_TYPE_META[equipment.type] || EQUIPMENT_TYPE_META.camera;
+        const equipmentColor = equipment.color || meta.color;
+
+        const row = document.createElement("div");
+        row.className = `member-row equipment-row ${equipment.type === "lighting" ? "equipment-row-lighting" : "equipment-row-camera"}`;
+        row.draggable = true;
+        row.title = `${equipment.name} (${meta.label})`;
+
+        row.addEventListener("dragstart", (ev) => {
+          ev.dataTransfer.setData(
+            "application/json",
+            JSON.stringify({ type: "equipment", equipmentId: equipment.id })
+          );
+
+          const dragPreview = document.createElement("div");
+          dragPreview.style.position = "fixed";
+          dragPreview.style.left = "-9999px";
+          dragPreview.style.top = "-9999px";
+          dragPreview.style.display = "flex";
+          dragPreview.style.flexDirection = "column";
+          dragPreview.style.alignItems = "center";
+          dragPreview.style.gap = "4px";
+          dragPreview.style.padding = "4px";
+
+          const dragDot = document.createElement("div");
+          dragDot.className = "member-dot";
+          dragDot.style.backgroundColor = equipmentColor;
+          dragDot.style.margin = "0";
+          dragPreview.appendChild(dragDot);
+
+          const dragLabel = document.createElement("div");
+          dragLabel.textContent = equipment.name;
+          dragLabel.style.fontSize = "12px";
+          dragLabel.style.color = "#333";
+          dragLabel.style.fontWeight = "bold";
+          dragLabel.style.whiteSpace = "nowrap";
+          dragPreview.appendChild(dragLabel);
+
+          document.body.appendChild(dragPreview);
+          ev.dataTransfer.setDragImage(dragPreview, 16, 16);
+
+          setTimeout(() => {
+            dragPreview.remove();
+          }, 0);
+        });
+
+        const dot = document.createElement("div");
+        dot.className = "member-dot";
+        dot.style.backgroundColor = equipmentColor;
+
+        const label = document.createElement("span");
+        label.className = "member-name-label";
+        label.textContent = equipment.name;
+
+        const toggleLineBtn = document.createElement("button");
+        toggleLineBtn.className = "equipment-line-toggle-btn";
+        toggleLineBtn.type = "button";
+        toggleLineBtn.draggable = false;
+        const isConeVisible = equipment.coneVisible !== false;
+        toggleLineBtn.textContent = isConeVisible ? "線ON" : "線OFF";
+        toggleLineBtn.title = "メガホン状の線の表示を切替";
+        toggleLineBtn.addEventListener("click", () => {
+          equipments = equipments.map((x) =>
+            x.id === equipment.id ? { ...x, coneVisible: x.coneVisible === false ? true : false } : x
+          );
+          applyEquipmentsState(equipments);
+          renderEquipments();
+          renderStage();
+          renderTimeframes();
+          saveStorage();
+        });
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "member-delete-btn";
+        deleteBtn.textContent = "✕";
+        deleteBtn.type = "button";
+        deleteBtn.draggable = false;
+        deleteBtn.title = "カメラ・照明を削除";
+        deleteBtn.addEventListener("click", () => {
+          equipments = equipments.filter((x) => x.id !== equipment.id);
+          stageItems = stageItems.filter((x) => x.equipmentId !== equipment.id);
+          timeframes = timeframes.map((frame) => ({
+            ...frame,
+            stageItems: (frame.stageItems || []).filter((x) => x.equipmentId !== equipment.id),
+          }));
+          renderEquipments();
+          renderStage();
+          renderTimeframes();
+          saveStorage();
+        });
+
+        row.appendChild(dot);
+        row.appendChild(label);
+        row.appendChild(toggleLineBtn);
+        row.appendChild(deleteBtn);
+        equipmentList.appendChild(row);
+      });
+    }
+
     function renderStage(animate = false) {
       const previousPositions = new Map();
       if (animate) {
@@ -673,6 +959,20 @@
       }
 
       stage.innerHTML = "";
+
+      const getDefaultConeParams = () => ({ angle: -90, spread: 120, length: 96 });
+
+      const applyConeStyle = (coneEl, angle, spread, length) => {
+        const leftLine = coneEl.querySelector(".stage-cone-line-left");
+        const rightLine = coneEl.querySelector(".stage-cone-line-right");
+        if (!leftLine || !rightLine) return;
+
+        leftLine.style.width = `${length}px`;
+        rightLine.style.width = `${length}px`;
+        leftLine.style.transform = `rotate(${angle - spread / 2}deg)`;
+        rightLine.style.transform = `rotate(${angle + spread / 2}deg)`;
+      };
+
       // y座標でソート（上が前に見えるようにz-indexを設定）
       const sorted = [...stageItems].sort((a, b) => a.y - b.y);
       sorted.forEach((item, index) => {
@@ -687,6 +987,81 @@
         el.style.zIndex = index; // y座標が小さいほど高いz-indexになる
         el.draggable = true;
         el.dataset.stageId = item.id;
+
+        if (item.itemType === "equipment") {
+          const defaults = getDefaultConeParams();
+          if (typeof item.coneAngle !== "number") item.coneAngle = defaults.angle;
+          if (typeof item.coneSpread !== "number") item.coneSpread = defaults.spread;
+          if (typeof item.coneLength !== "number") item.coneLength = defaults.length;
+          if (typeof item.coneVisible !== "boolean") item.coneVisible = true;
+
+          const cone = document.createElement("div");
+          cone.className = "stage-cone";
+          cone.title = "左ドラッグ: 幅調整 / ホイールドラッグ: 向き・長さ調整";
+
+          const leftLine = document.createElement("div");
+          leftLine.className = "stage-cone-line stage-cone-line-left";
+          const rightLine = document.createElement("div");
+          rightLine.className = "stage-cone-line stage-cone-line-right";
+
+          cone.appendChild(leftLine);
+          cone.appendChild(rightLine);
+          if (item.coneVisible) {
+            applyConeStyle(cone, item.coneAngle, item.coneSpread, item.coneLength);
+          } else {
+            cone.style.display = "none";
+          }
+
+          const startConeAdjust = (ev) => {
+            if (ev.button !== 0 && ev.button !== 1) return;
+            ev.preventDefault();
+            ev.stopPropagation();
+
+            const mode = ev.button === 0 ? "spread" : "angle-length";
+            const startX = ev.clientX;
+            const startSpread = item.coneSpread;
+
+            const onMove = (moveEv) => {
+              if (mode === "spread") {
+                const dx = moveEv.clientX - startX;
+                item.coneSpread = Math.max(0, Math.min(180, startSpread + dx * 0.6));
+                applyConeStyle(cone, item.coneAngle, item.coneSpread, item.coneLength);
+                return;
+              }
+
+              const rect = el.getBoundingClientRect();
+              const centerX = rect.left + rect.width / 2;
+              const centerY = rect.top + rect.height / 2;
+              const dx = moveEv.clientX - centerX;
+              const dy = moveEv.clientY - centerY;
+
+              const angleDeg = Math.atan2(dy, dx) * 180 / Math.PI;
+              const length = Math.sqrt(dx * dx + dy * dy);
+
+              item.coneAngle = angleDeg;
+              item.coneLength = Math.max(36, Math.min(460, length));
+              applyConeStyle(cone, item.coneAngle, item.coneSpread, item.coneLength);
+            };
+
+            const onUp = () => {
+              document.removeEventListener("mousemove", onMove);
+              document.removeEventListener("mouseup", onUp);
+              saveStorage();
+            };
+
+            document.addEventListener("mousemove", onMove);
+            document.addEventListener("mouseup", onUp);
+          };
+
+          cone.addEventListener("mousedown", startConeAdjust);
+          cone.addEventListener("auxclick", (ev) => {
+            if (ev.button === 1) {
+              ev.preventDefault();
+              ev.stopPropagation();
+            }
+          });
+          el.appendChild(cone);
+        }
 
         if (animate) {
           const prev = previousPositions.get(item.id);
@@ -866,6 +1241,31 @@
         const centerX = item.x + 16;
         const centerY = stageTop + item.y + 16;
 
+        if (item.itemType === "equipment" && item.coneVisible !== false) {
+          const coneAngle = typeof item.coneAngle === "number" ? item.coneAngle : -90;
+          const coneSpread = typeof item.coneSpread === "number" ? item.coneSpread : 120;
+          const coneLength = typeof item.coneLength === "number" ? item.coneLength : 96;
+
+          const leftRad = ((coneAngle - coneSpread / 2) * Math.PI) / 180;
+          const rightRad = ((coneAngle + coneSpread / 2) * Math.PI) / 180;
+
+          const leftX = centerX + Math.cos(leftRad) * coneLength;
+          const leftY = centerY + Math.sin(leftRad) * coneLength;
+          const rightX = centerX + Math.cos(rightRad) * coneLength;
+          const rightY = centerY + Math.sin(rightRad) * coneLength;
+
+          ctx.save();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = "rgba(17, 17, 17, 0.2)";
+          ctx.beginPath();
+          ctx.moveTo(centerX, centerY);
+          ctx.lineTo(leftX, leftY);
+          ctx.moveTo(centerX, centerY);
+          ctx.lineTo(rightX, rightY);
+          ctx.stroke();
+          ctx.restore();
+        }
+
         ctx.beginPath();
         ctx.arc(centerX, centerY, 16, 0, Math.PI * 2);
         ctx.fillStyle = item.color;
@@ -893,6 +1293,7 @@
       const config = {
         songName: currentSong || "",
         members,
+        equipments,
         stageItems,
         timeframes,
       };
@@ -917,6 +1318,7 @@
           
           // データを復元
           members = config.members.map((x) => ({ ...x }));
+          equipments = Array.isArray(config.equipments) ? config.equipments.map((x) => ({ ...x })) : [];
           stageItems = Array.isArray(config.stageItems) ? config.stageItems.map((x) => ({ ...x })) : [];
           timeframes = Array.isArray(config.timeframes) ? config.timeframes.map((x) => ({ ...x })) : [];
           currentSong = config.songName || "";
@@ -924,6 +1326,7 @@
           songNameInput.value = currentSong;
           updateSongSelect();
           renderMembers();
+          renderEquipments();
           renderStage();
           renderTimeframes();
           saveStorage();
@@ -941,12 +1344,14 @@
 
     function applySharedState(payload) {
       members = Array.isArray(payload.members) ? payload.members.map((x) => ({ ...x })) : [];
+      equipments = Array.isArray(payload.equipments) ? payload.equipments.map((x) => ({ ...x })) : [];
       stageItems = Array.isArray(payload.stageItems) ? payload.stageItems.map((x) => ({ ...x })) : [];
       timeframes = Array.isArray(payload.timeframes) ? payload.timeframes.map((x) => ({ ...x })) : [];
       currentSong = payload.songName || "";
       songNameInput.value = currentSong;
       updateSongSelect();
       renderMembers();
+      renderEquipments();
       renderStage();
       renderTimeframes();
       saveStorage();
@@ -1062,6 +1467,10 @@
       openMemberManager();
     });
 
+    openEquipmentManagerBtn.addEventListener("click", () => {
+      openEquipmentManager();
+    });
+
     addMemberRowBtn.addEventListener("click", () => {
       memberManagerDraft.push({ id: generateId(), name: "", color: "#ff0000" });
       renderMemberManagerRows();
@@ -1103,9 +1512,63 @@
       }
     });
 
+    addCameraRowBtn.addEventListener("click", () => {
+      equipmentManagerDraft.push({ id: generateId(), name: "カメラ", type: "camera", color: "#111111", coneVisible: true });
+      renderEquipmentManagerRows();
+      const inputs = equipmentManagerList.querySelectorAll(".member-manager-name");
+      const lastInput = inputs[inputs.length - 1];
+      if (lastInput) lastInput.focus();
+    });
+
+    addLightingRowBtn.addEventListener("click", () => {
+      equipmentManagerDraft.push({ id: generateId(), name: "照明", type: "lighting", color: "#f7f4e8", coneVisible: true });
+      renderEquipmentManagerRows();
+      const inputs = equipmentManagerList.querySelectorAll(".member-manager-name");
+      const lastInput = inputs[inputs.length - 1];
+      if (lastInput) lastInput.focus();
+    });
+
+    saveEquipmentManagerBtn.addEventListener("click", () => {
+      const nextEquipments = equipmentManagerDraft.map((equipment) => ({
+        ...equipment,
+        name: (equipment.name || "").trim(),
+        type: equipment.type === "lighting" ? "lighting" : "camera",
+        color: (equipment.color || (equipment.type === "lighting" ? "#f7f4e8" : "#111111")),
+        coneVisible: equipment.coneVisible !== false,
+      }));
+
+      if (nextEquipments.some((equipment) => !equipment.name)) {
+        alert("カメラ・照明の名前は空にできません。");
+        return;
+      }
+
+      applyEquipmentsState(nextEquipments);
+      renderEquipments();
+      renderStage();
+      saveStorage();
+      closeEquipmentManager();
+    });
+
+    cancelEquipmentManagerBtn.addEventListener("click", () => {
+      closeEquipmentManager();
+    });
+
+    closeEquipmentManagerBtn.addEventListener("click", () => {
+      closeEquipmentManager();
+    });
+
+    equipmentManagerModal.addEventListener("click", (ev) => {
+      if (ev.target === equipmentManagerModal) {
+        closeEquipmentManager();
+      }
+    });
+
     document.addEventListener("keydown", (ev) => {
       if (ev.key === "Escape" && !memberManagerModal.classList.contains("hidden")) {
         closeMemberManager();
+      }
+      if (ev.key === "Escape" && !equipmentManagerModal.classList.contains("hidden")) {
+        closeEquipmentManager();
       }
     });
 
@@ -1204,9 +1667,29 @@
         if (!m) return;
         stageItems.push({
           id: generateId(),
+          itemType: "member",
           memberId: m.id,
           name: m.name,
           color: m.color,
+          x: pos.x,
+          y: pos.y,
+        });
+      } else if (data.type === "equipment") {
+        const equipment = equipments.find((x) => x.id === data.equipmentId);
+        if (!equipment) return;
+        const meta = EQUIPMENT_TYPE_META[equipment.type] || EQUIPMENT_TYPE_META.camera;
+        const defaults = { spread: 120, length: 96 };
+        stageItems.push({
+          id: generateId(),
+          itemType: "equipment",
+          equipmentId: equipment.id,
+          equipmentType: equipment.type,
+          name: equipment.name,
+          color: equipment.color || meta.color,
+          coneVisible: equipment.coneVisible !== false,
+          coneAngle: -90,
+          coneSpread: defaults.spread,
+          coneLength: defaults.length,
           x: pos.x,
           y: pos.y,
         });
@@ -1233,9 +1716,13 @@
         return;
       }
       songs[song] = {
-        members,
-        stageItems,
-        timeframes,
+        members: members.map((x) => ({ ...x })),
+        equipments: equipments.map((x) => ({ ...x })),
+        stageItems: stageItems.map((x) => ({ ...x })),
+        timeframes: timeframes.map((frame) => ({
+          ...frame,
+          stageItems: (frame.stageItems || []).map((item) => ({ ...item })),
+        })),
       };
       currentSong = song;
       updateSongSelect();
@@ -1252,6 +1739,7 @@
       }
       const s = songs[song];
       members = s.members.map((x) => ({ ...x }));
+      equipments = Array.isArray(s.equipments) ? s.equipments.map((x) => ({ ...x })) : [];
       stageItems = s.stageItems.map((x) => ({ ...x }));
       timeframes = Array.isArray(s.timeframes) ? s.timeframes.map((x) => ({ ...x })) : [];
       currentSong = song;
@@ -1259,6 +1747,7 @@
       updateSongSelect();
       setShareHash(song);
       renderMembers();
+      renderEquipments();
       renderStage();
       renderTimeframes();
       saveStorage();
@@ -1274,7 +1763,7 @@
       delete songs[song];
       if (currentSong === song) currentSong = "";
       updateSongSelect();
-      saveStorage();
+      saveStorage({ mergeExistingSongs: false });
       alert("削除しました。");
     });
 
@@ -1300,6 +1789,7 @@
         songNameInput.value = hash.song;
         const s = songs[hash.song];
         members = s.members.map((x) => ({ ...x }));
+        equipments = Array.isArray(s.equipments) ? s.equipments.map((x) => ({ ...x })) : [];
         stageItems = s.stageItems.map((x) => ({ ...x }));
         timeframes = Array.isArray(s.timeframes) ? s.timeframes.map((x) => ({ ...x })) : [];
       }
@@ -1314,6 +1804,7 @@
 
       updateSongSelect();
       renderMembers();
+      renderEquipments();
       renderStage();
       renderTimeframes();
     }
