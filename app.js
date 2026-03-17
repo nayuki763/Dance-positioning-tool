@@ -62,6 +62,7 @@
     let videoDisplayMode = true; // true = video shown, false = controls only
     let isPlaying = false;
     let lastAppliedFrameIndex = -1;
+    let currentVideoId = "";
     let activeMemberEditor = null;
     let activeTimeframeEditor = null;
     let memberManagerDraft = [];
@@ -241,6 +242,7 @@
 
     function saveStorage(options = {}) {
       const { mergeExistingSongs = true } = options;
+      const youtubeState = getCurrentYoutubeState();
 
       let songsToSave = songs;
       if (mergeExistingSongs) {
@@ -262,7 +264,16 @@
       songs = songsToSave;
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ members, equipments, stageItems, songs: songsToSave, currentSong, timeframes })
+        JSON.stringify({
+          members,
+          equipments,
+          stageItems,
+          songs: songsToSave,
+          currentSong,
+          timeframes,
+          youtubeUrl: youtubeState.youtubeUrl,
+          youtubeVideoId: youtubeState.youtubeVideoId,
+        })
       );
     }
 
@@ -278,6 +289,7 @@
         songs = data.songs || {};
         currentSong = data.currentSong || "";
         timeframes = Array.isArray(data.timeframes) ? data.timeframes : [];
+        applyYouTubeState(data);
       } catch (e) {
         console.warn("読み込み失敗", e);
       }
@@ -1019,6 +1031,42 @@
       return match ? match[1] : null;
     }
 
+    function resolveYouTubeState(payload = {}) {
+      const savedUrl = typeof payload.youtubeUrl === "string" ? payload.youtubeUrl.trim() : "";
+      const savedVideoId = typeof payload.youtubeVideoId === "string" ? payload.youtubeVideoId.trim() : "";
+      const derivedVideoId = savedVideoId || (savedUrl ? extractYoutubeVideoId(savedUrl) || "" : "");
+      const resolvedUrl = savedUrl || (derivedVideoId ? `https://www.youtube.com/watch?v=${derivedVideoId}` : "");
+      return {
+        youtubeUrl: resolvedUrl,
+        youtubeVideoId: derivedVideoId,
+      };
+    }
+
+    function getCurrentYouTubeState() {
+      const typedUrl = (youtubeUrl.value || "").trim();
+      let loadedVideoId = "";
+
+      if (player && typeof player.getVideoData === "function") {
+        const data = player.getVideoData();
+        loadedVideoId = data && data.video_id ? data.video_id : "";
+      }
+
+      const fallbackVideoId = typedUrl ? extractYoutubeVideoId(typedUrl) || "" : "";
+      const youtubeVideoId = loadedVideoId || currentVideoId || fallbackVideoId;
+      const youtubeUrlValue = typedUrl || (youtubeVideoId ? `https://www.youtube.com/watch?v=${youtubeVideoId}` : "");
+
+      return {
+        youtubeUrl: youtubeUrlValue,
+        youtubeVideoId,
+      };
+    }
+
+    function applyYouTubeState(payload = {}) {
+      const state = resolveYouTubeState(payload);
+      currentVideoId = state.youtubeVideoId;
+      youtubeUrl.value = state.youtubeUrl;
+    }
+
     function formatTime(seconds) {
       const mins = Math.floor(seconds / 60);
       const secs = Math.floor(seconds % 60);
@@ -1262,12 +1310,16 @@
         return;
       }
 
+      const youtubeState = getCurrentYouTubeState();
+
       const config = {
         songName: songTitle,
         members,
         equipments,
         stageItems,
         timeframes,
+        youtubeUrl: youtubeState.youtubeUrl,
+        youtubeVideoId: youtubeState.youtubeVideoId,
       };
       
       const json = JSON.stringify(config, null, 2);
@@ -1302,6 +1354,7 @@
           stageItems = Array.isArray(config.stageItems) ? config.stageItems.map((x) => ({ ...x })) : [];
           timeframes = Array.isArray(config.timeframes) ? config.timeframes.map((x) => ({ ...x })) : [];
           currentSong = config.songName || "";
+          applyYouTubeState(config);
           
           songNameInput.value = currentSong;
           updateSongSelect();
@@ -1328,6 +1381,7 @@
       stageItems = Array.isArray(payload.stageItems) ? payload.stageItems.map((x) => ({ ...x })) : [];
       timeframes = Array.isArray(payload.timeframes) ? payload.timeframes.map((x) => ({ ...x })) : [];
       currentSong = payload.songName || "";
+      applyYouTubeState(payload);
       songNameInput.value = currentSong;
       updateSongSelect();
       renderMembers();
@@ -1366,6 +1420,8 @@
       if (player) {
         player.destroy();
       }
+
+      currentVideoId = videoId;
 
       videoDisplayMode = true;
       toggleVideoDisplay.textContent = "再生バーのみ表示";
@@ -1609,6 +1665,7 @@
         return;
       }
       initializePlayer(videoId);
+      saveStorage();
     });
 
     playBtn.addEventListener("click", () => {
@@ -1710,6 +1767,7 @@
           ...frame,
           stageItems: (frame.stageItems || []).map((item) => ({ ...item })),
         })),
+        ...getCurrentYouTubeState(),
       };
       currentSong = song;
       updateSongSelect();
@@ -1729,6 +1787,7 @@
       equipments = Array.isArray(s.equipments) ? s.equipments.map((x) => ({ ...x })) : [];
       stageItems = s.stageItems.map((x) => ({ ...x }));
       timeframes = Array.isArray(s.timeframes) ? s.timeframes.map((x) => ({ ...x })) : [];
+      applyYouTubeState(s);
       currentSong = song;
       songNameInput.value = song;
       updateSongSelect();
@@ -1779,6 +1838,7 @@
         equipments = Array.isArray(s.equipments) ? s.equipments.map((x) => ({ ...x })) : [];
         stageItems = s.stageItems.map((x) => ({ ...x }));
         timeframes = Array.isArray(s.timeframes) ? s.timeframes.map((x) => ({ ...x })) : [];
+        applyYouTubeState(s);
       }
 
       if (members.length === 0) {
