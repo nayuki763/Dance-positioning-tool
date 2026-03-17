@@ -1,4 +1,4 @@
-﻿* {
+* {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -194,6 +194,63 @@ button.danger:hover {
   cursor: grabbing;
 }
 
+.member-name-label {
+  cursor: pointer;
+  border-bottom: 1px dashed transparent;
+}
+
+.member-name-label:hover {
+  color: #3349c4;
+  border-bottom-color: #3349c4;
+}
+
+.member-edit-popover {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #d0d7df;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  padding: 8px;
+}
+
+.member-edit-name {
+  min-width: 120px;
+  max-width: 160px;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.member-edit-color {
+  width: 34px;
+  height: 34px;
+  padding: 2px;
+  border: 1px solid #d0d7df;
+  border-radius: 6px;
+}
+
+.member-edit-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.member-edit-save,
+.member-edit-cancel {
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.member-edit-cancel {
+  background: #9aa5b1;
+}
+
+.member-edit-cancel:hover {
+  background: #7f8a96;
+}
+
 .member-delete-btn {
   background: #ef5350;
   color: #fff;
@@ -225,7 +282,7 @@ button.danger:hover {
 .stage {
   position: relative;
   width: 100%;
-  min-height: 320px;
+  min-height: 420px;
   background: linear-gradient(135deg, #f5f7fa 0%, #f5f7fa 100%);
   border: 2px dashed #d9e0ea;
   border-radius: 8px;
